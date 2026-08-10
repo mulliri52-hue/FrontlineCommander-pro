@@ -15,21 +15,38 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Prepara Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
       - name: Prepara Gradle
         uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.13'
 
       - name: Estrai il progetto Android
         run: |
           rm -rf buildsrc
-          mkdir buildsrc
+          mkdir -p buildsrc
           unzip -q FrontlineCommander_CloudBuild.zip -d buildsrc
+
+      - name: Imposta Java e Kotlin a 17
+        working-directory: buildsrc
+        run: |
+          python3 - <<'PY'
+          import pathlib
+
+          for p in pathlib.Path(".").rglob("*"):
+              if p.is_file() and p.suffix in [".gradle", ".kts"]:
+                  try:
+                      s = p.read_text()
+                      s = s.replace("JavaVersion.VERSION_1_8", "JavaVersion.VERSION_17")
+                      s = s.replace("JavaVersion.VERSION_8", "JavaVersion.VERSION_17")
+                      s = s.replace('jvmTarget = "1.8"', 'jvmTarget = "17"')
+                      s = s.replace("jvmTarget = '1.8'", "jvmTarget = '17'")
+                      p.write_text(s)
+                  except:
+                      pass
+          PY
 
       - name: Compila APK
         working-directory: buildsrc
@@ -40,4 +57,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: FrontlineCommander-APK
-          path: buildsrc/app/build/outputs/apk/debug/app-debug.apk
+          path: buildsrc/app/build/outputs/apk/debug/*.apk
